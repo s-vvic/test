@@ -126,11 +126,11 @@ function Sidebar({ isOpen, onClose }) {
                   ) : (
                     cameras.map((camera) => (
                       <button
-                        key={camera.id}
+                        key={camera.device_id}
                         type="button"
                         className="camera-popover-item"
                         onClick={() =>
-                          handleCameraSelect(camera.id)
+                          handleCameraSelect(camera.device_id)
                         }
                       >
                         <span>{camera.name}</span>

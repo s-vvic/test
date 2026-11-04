@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import VpnAlertBanner from "../components/vpn/VpnAlertBanner";
+import ApiErrorToast from "../components/ApiErrorToast";
 import recentNotifications from "../data/recentNotifications.js";
 // import { logout } from "../api/authApi";  // 백엔드 연결 시 주석 해제
 import { clearSession } from "../storage/authStorage";
@@ -396,6 +397,9 @@ function MainLayout() {
       <VpnAlertBanner />
 
       <Outlet />
+
+      {/* API 오류 응답의 message 표시 */}
+      <ApiErrorToast />
 
     </div>
   );

@@ -12,6 +12,7 @@ import DonutChart from "../charts/DonutChart";
 import RankBars from "../charts/RankBars";
 import { VPN_STATUS_META } from "../charts/chartColors";
 import StackedBar from "./StackedBar";
+import { formatLastSeen, formatUptime } from "../../utils/formatDateTime";
 
 const TITLES = {
   trend: "기간별 이벤트 발생 추이",
@@ -246,12 +247,12 @@ function OnlineDetail({ data, onClose }) {
               {cameraList
                 .filter((camera) => camera.status === group.key)
                 .map((camera) => (
-                  <li key={camera.id}>
+                  <li key={camera.device_id}>
                     <button
                       type="button"
                       onClick={() => {
                         onClose();
-                        navigate(`/Monitoring/${camera.id}`);
+                        navigate(`/Monitoring/${camera.device_id}`);
                       }}
                     >
                       <span className="report-detail-name">
@@ -260,8 +261,8 @@ function OnlineDetail({ data, onClose }) {
                       </span>
                       <small>
                         {group.key === "online"
-                          ? `가동 ${camera.uptime ?? "-"}`
-                          : `마지막 연결 ${camera.lastConnectedAt ?? "-"}`}
+                          ? `가동 ${formatUptime(camera.uptime_seconds)}`
+                          : `마지막 수신 ${formatLastSeen(camera.last_seen)}`}
                       </small>
                       <FiChevronRight />
                     </button>

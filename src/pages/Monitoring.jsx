@@ -29,22 +29,33 @@ import {
 
 import "./Monitoring.css";
 import { VPN_STATUS_META } from "../components/charts/chartColors";
-import { cameras } from "../data/cameras";
+import useCameraList from "../hooks/useCameraList";
 import EditableCameraName from "../components/EditableCameraName";
 import PrivacyZoneModal from "../components/privacy/PrivacyZoneModal";
 import { getZones } from "../data/privacyZoneStore";
 import useWebRtcStream from "../hooks/useWebRtcStream";
+import { formatLastSeen, formatUptime } from "../utils/formatDateTime";
+import { formatMac } from "../utils/mac";
 import useDigitalZoom, { MIN_ZOOM, MAX_ZOOM } from "../hooks/useDigitalZoom";
 
 function Monitoring() {
   const { cameraId } = useParams();
   const navigate = useNavigate();
 
-  const originalCamera = cameras.find(
-    (item) => item.id === Number(cameraId)
+  // 보드 목록 — 5초마다 자동 재조회해서 상태 / 마지막 수신 시간을 갱신한다
+  const { cameras, source } = useCameraList();
+
+  // URL의 :cameraId는 문자열이라 device_id(숫자 또는 문자열)와 문자열로 비교한다
+  const liveCamera = cameras.find(
+    (item) => String(item.device_id) === cameraId
   );
 
-  const [camera, setCamera] = useState(originalCamera || null);
+  // 이름은 아직 화면에서만 수정 (자동 재조회가 덮어쓰지 않도록 따로 둔다)
+  const [nameOverride, setNameOverride] = useState(null);
+
+  const camera = liveCamera
+    ? { ...liveCamera, ...(nameOverride !== null && { name: nameOverride }) }
+    : null;
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -58,7 +69,7 @@ function Monitoring() {
   const videoRef = useRef(null);
   const streamStatus = useWebRtcStream(
     videoRef,
-    originalCamera?.webrtcUrl ?? null,
+    liveCamera?.webrtcUrl ?? null,
     streamKey
   );
 
@@ -69,15 +80,15 @@ function Monitoring() {
   // 프라이버시 존 (WEB-F-024)
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [privacyZones, setPrivacyZones] = useState(() =>
-    getZones(Number(cameraId))
+    getZones(cameraId)
   );
 
 
   // URL에서 다른 카메라로 이동했을 때 정보 갱신
   useEffect(() => {
-    setCamera(originalCamera || null);
+    setNameOverride(null);
     setIsEditingName(false);
-    setPrivacyZones(getZones(Number(cameraId)));
+    setPrivacyZones(getZones(cameraId));
     zoom.reset();
   }, [cameraId]);
 
@@ -95,7 +106,7 @@ function Monitoring() {
   if (!camera) {
     return (
       <main className="monitoring-page">
-        <p>찾을 수 없는 카메라입니다.</p>
+        <p>{source === "loading" ? "카메라 정보를 불러오는 중..." : "찾을 수 없는 카메라입니다."}</p>
 
         <button
           type="button"
@@ -110,15 +121,12 @@ function Monitoring() {
 
   // 이름 수정
   function handleNameSave(newName) {
-    setCamera((prev) => ({
-      ...prev,
-      name: newName,
-    }));
+    setNameOverride(newName);
 
     setIsEditingName(false);
 
     // 나중에 API
-    // await updateCameraName(camera.id, newName);
+    // await updateCameraName(camera.mac, newName);
   }
 
 
@@ -151,11 +159,11 @@ function Monitoring() {
   const isOnline = camera.status === "online";
 
   const isVpnConnected =
-    camera.vpnStatus === "connected";
+    camera.vpn_status === "connected";
 
   // VPN 상태 이름은 모든 화면 공통 (정상 / 연결 끊김 / 오류)
   const vpnStatusLabel =
-    VPN_STATUS_META[camera.vpnStatus]?.label ??
+    VPN_STATUS_META[camera.vpn_status]?.label ??
     (isVpnConnected ? VPN_STATUS_META.connected.label : VPN_STATUS_META.disconnected.label);
 
 
@@ -429,7 +437,7 @@ function Monitoring() {
             </span>
 
             <span className="info-value">
-              {camera.boardId ?? "-"}
+              {camera.device_id ?? "-"}
             </span>
           </div>
 
@@ -437,13 +445,11 @@ function Monitoring() {
           <div className="info-row">
             <span className="info-label">
               <FiHash />
-              시리얼 번호
+              MAC 주소
             </span>
 
             <span className="info-value">
-              {camera.serialNumber ??
-                camera.hwnum ??
-                "-"}
+              {camera.mac ? formatMac(camera.mac) : "-"}
             </span>
           </div>
 
@@ -451,11 +457,11 @@ function Monitoring() {
           <div className="info-row">
             <span className="info-label">
               <FiBox />
-              모델
+              VPN IP
             </span>
 
             <span className="info-value">
-              {camera.model ?? "-"}
+              {camera.vpn_ip ?? "-"}
             </span>
           </div>
 
@@ -467,7 +473,7 @@ function Monitoring() {
             </span>
 
             <span className="info-value">
-              {camera.firmwareVersion ?? "-"}
+              {camera.firmware_version ?? "-"}
             </span>
           </div>
 
@@ -523,11 +529,11 @@ function Monitoring() {
           <div className="info-row">
             <span className="info-label">
               <FiClock />
-              마지막 접속 시간
+              마지막 수신 시간
             </span>
 
             <span className="info-value">
-              {camera.lastConnectedAt ?? "-"}
+              {formatLastSeen(camera.last_seen)}
             </span>
           </div>
 
@@ -539,7 +545,8 @@ function Monitoring() {
             </span>
 
             <span className="info-value">
-              {camera.uptime ?? "-"}
+              {/* 2.2.3 보드 상태 조회(uptime_seconds) 연결 전까지는 "-" */}
+              {formatUptime(camera.uptime_seconds)}
             </span>
           </div>
 

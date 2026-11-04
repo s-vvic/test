@@ -40,10 +40,9 @@ function App() {
           element={<Navigate to="/login" replace />}
         />
 
-        {/* 로그인 전: 같은 카드가 주소에 맞춰 로그인 / 회원가입 / 찾기로 바뀐다 */}
+        {/* 로그인 전: 같은 카드가 주소에 맞춰 로그인 / 회원가입 / 비밀번호 찾기로 바뀐다 */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
-          <Route path="/find-id" element={<Login />} />
           <Route path="/find-pw" element={<Login />} />
           <Route path="/signup" element={<Login />} />
         </Route>

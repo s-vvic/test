@@ -25,8 +25,10 @@ function StorageSettings() {
   useEffect(() => {
     getStorageSettings()
       .then((data) => {
-        setSaved(data);
-        setSettings(data);
+        // 명세에 없는 항목(saveMode, overwriteWhenFull, usage.byType)은 화면 값을 유지한다
+        const merged = { ...initialStorageSettings, ...data, usage: { ...initialStorageSettings.usage, ...data.usage } };
+        setSaved(merged);
+        setSettings(merged);
       })
       .catch(console.error);
   }, []);
@@ -60,13 +62,12 @@ function StorageSettings() {
     try {
       const data = await updateStorageSettings({
         autoSave: settings.autoSave,
-        saveMode: settings.saveMode,
         quality: settings.quality,
         retentionDays: settings.retentionDays,
-        overwriteWhenFull: settings.overwriteWhenFull,
       });
-      setSaved(data);
-      setSettings(data);
+      const merged = { ...settings, ...data, usage: { ...settings.usage, ...data.usage } };
+      setSaved(merged);
+      setSettings(merged);
       setSaveState("done");
     } catch (error) {
       console.error(error);

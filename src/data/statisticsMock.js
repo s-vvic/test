@@ -69,7 +69,7 @@ function eachDay(startDate, endDate) {
 // 카메라 1대, 하루 이벤트 수
 function dailyCount(cameraId, day) {
   const random = seededRandom(`${cameraId}-${day}`);
-  const camera = cameras.find((c) => c.id === cameraId);
+  const camera = cameras.find((c) => c.device_id === cameraId);
 
   // 오프라인 카메라는 이벤트가 적게
   const base = camera?.status === "online" ? 9 : 3;
@@ -94,22 +94,22 @@ export function generateStatistics({ startDate, endDate, cameraId = "all" }) {
   const targetCameras =
     cameraId === "all"
       ? cameras
-      : cameras.filter((c) => String(c.id) === String(cameraId));
+      : cameras.filter((c) => String(c.device_id) === String(cameraId));
 
   const trend = days.map((day) => ({
     date: day,
     count: targetCameras.reduce(
-      (sum, camera) => sum + dailyCount(camera.id, day),
+      (sum, camera) => sum + dailyCount(camera.device_id, day),
       0
     ),
   }));
 
   const byCamera = targetCameras
     .map((camera) => ({
-      cameraId: camera.id,
+      cameraId: camera.device_id,
       cameraName: camera.name,
       location: camera.location,
-      count: days.reduce((sum, day) => sum + dailyCount(camera.id, day), 0),
+      count: days.reduce((sum, day) => sum + dailyCount(camera.device_id, day), 0),
     }))
     .sort((a, b) => b.count - a.count);
 
@@ -159,7 +159,7 @@ export function generateDashboardSummary(unreadAlerts) {
   const today = toDateInputValue(new Date());
 
   const todayEvents = cameras.reduce(
-    (sum, camera) => sum + dailyCount(camera.id, today),
+    (sum, camera) => sum + dailyCount(camera.device_id, today),
     0
   );
 
@@ -176,19 +176,19 @@ export function generateDashboardSummary(unreadAlerts) {
 
 /*
   카메라 / Device VPN 상태 요약 (WEB-F-041)
-  cameras.js에는 오류 상태가 없어서 시연용으로 일부 기기를 오류로 표시
+  cameras.js(ICD 2.2.1 목업)에는 오류 상태가 없어서 시연용으로 일부 기기를 오류로 표시
 */
-const DEMO_VPN_ERROR_IDS = [4, 17];
+const DEMO_VPN_ERROR_IDS = ["CAM-0004", "CAM-0011"];
 
 export function getDeviceVpnList() {
   return cameras.map((camera) => {
-    const isError = DEMO_VPN_ERROR_IDS.includes(camera.id);
+    const isError = DEMO_VPN_ERROR_IDS.includes(camera.device_id);
 
     return {
-      cameraId: camera.id,
+      cameraId: camera.device_id,
       cameraName: camera.name,
       location: camera.location,
-      vpnStatus: isError ? "error" : camera.vpnStatus,
+      vpnStatus: isError ? "error" : camera.vpn_status,
       error: isError ? "Handshake Timeout" : null,
     };
   });

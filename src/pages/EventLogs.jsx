@@ -53,7 +53,7 @@ function toDateValue(date) {
 
 /*
   선택한 기간 → { from, to } ("YYYY-MM-DD", 양 끝 포함)
-  서버 연결 후에는 이 값을 조회 조건으로 넘기면 됨  예) getEvents({ from, to }) → /api/events?from=…&to=…
+  서버 연결 후에는 이 값을 조회 조건으로 넘기면 됨  예) getEvents({ startDate: from, endDate: to }) → /events?start_date=…&end_date=…
 */
 function getPeriodRange(period, customDate) {
   if (period === "custom" && customDate) {
@@ -95,16 +95,16 @@ function EventLogs() {
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    async function getEvents() {
+    async function loadEvents() {
       try {
         const data = await getEvents();
 
-        setEvents(data);
+        setEvents(data.items);
       } catch (error) {
         console.error(error);
       }
     }
-    getEvents();
+    loadEvents();
   }, []);
   */
 
@@ -356,11 +356,11 @@ function EventLogs() {
             onChange={(e) => setCameraFilter(e.target.value)}
           >
             <option value="all">전체 카메라</option>
-            <option value="1">CAM-01</option>
-            <option value="2">CAM-02</option>
-            <option value="3">CAM-03</option>
-            <option value="4">CAM-04</option>
-            <option value="5">CAM-05</option>
+            <option value="CAM-0001">CAM-01</option>
+            <option value="CAM-0002">CAM-02</option>
+            <option value="CAM-0003">CAM-03</option>
+            <option value="CAM-0004">CAM-04</option>
+            <option value="CAM-0005">CAM-05</option>
           </select>
         </div>
 

@@ -17,6 +17,7 @@ import "../components/Modal.css";
 import DonutChart from "../components/charts/DonutChart";
 import { EVENT_TYPE_META, VPN_STATUS_META } from "../components/charts/chartColors";
 import { useVpn } from "../context/VpnContext";
+import useCameraList from "../hooks/useCameraList";
 
 import { eventLogs } from "../data/eventLogs";
 import {
@@ -41,6 +42,9 @@ const PERIODS = [
   { key: "month", label: "30일", days: 29 },
 ];
 
+// 대시보드는 다른 목록 화면(5초)보다 느슨하게 10초마다 보드 목록을 다시 불러온다
+const DASHBOARD_POLL_MS = 10000;
+
 const CLIENT_VPN_TEXT = {
   connected: { label: "연결됨", desc: "VPN 내부 서버와 정상적으로 연결되어 있습니다." },
   connecting: { label: "확인 중", desc: "VPN 내부 서버 연결을 확인하고 있습니다..." },
@@ -59,7 +63,23 @@ function Dashboard() {
 
   const unreadAlerts = eventLogs.filter((e) => e.status === "unconfirmed").length;
 
-  const summary = useMemo(() => generateDashboardSummary(unreadAlerts), [unreadAlerts]);
+  // 보드 목록 (ICD 2.2.1) — 10초마다 재조회. 서버에 닿지 못하면 목업
+  const { cameras, source } = useCameraList({ pollMs: DASHBOARD_POLL_MS });
+  const isMockList = source === "loading" || source === "mock";
+
+  // 카메라 대수(전체 / 온라인 / 오프라인)는 보드 목록으로 계산하고,
+  // 오늘 이벤트 · 미확인 알림은 이벤트 API 연결 전까지 목업 값을 쓴다
+  const summary = useMemo(() => {
+    const mockSummary = generateDashboardSummary(unreadAlerts);
+    const onlineCameras = cameras.filter((camera) => camera.status === "online").length;
+
+    return {
+      ...mockSummary,
+      totalCameras: cameras.length,
+      onlineCameras,
+      offlineCameras: cameras.length - onlineCameras,
+    };
+  }, [cameras, unreadAlerts]);
 
   // 카드 높이만큼 채워서 보여주고, 화면이 작으면 목록 안에서만 스크롤
   const recentEvents = useMemo(
@@ -89,7 +109,21 @@ function Dashboard() {
     }));
   }, [period]);
 
-  const vpnList = useMemo(() => getDeviceVpnList(), []);
+  // Device VPN 상태: 목업일 때는 시연용 목록(오류 기기 포함), 서버 데이터일 때는 보드 목록의 vpn_status
+  // (오류 유형까지 보려면 2.5.1 GET /vpn/connections 연결 필요)
+  const vpnList = useMemo(
+    () =>
+      isMockList
+        ? getDeviceVpnList()
+        : cameras.map((camera) => ({
+            cameraId: camera.device_id,
+            cameraName: camera.name,
+            location: camera.location,
+            vpnStatus: camera.vpn_status ?? "disconnected",
+            error: null,
+          })),
+    [cameras, isMockList]
+  );
 
   const vpnStats = Object.entries(VPN_STATUS_META).map(([key, meta]) => {
     const value = vpnList.filter((d) => d.vpnStatus === key).length;
@@ -327,7 +361,7 @@ function Dashboard() {
                 <li key={device.cameraId}>
                   <span className="dash-vpn-name">
                     {device.cameraName}
-                    <small>CAM-{String(device.cameraId).padStart(4, "0")}</small>
+                    <small>{device.cameraId}</small>
                   </span>
                   <span className={`dash-vpn-status ${device.vpnStatus}`}>
                     <span className="status-dot" />

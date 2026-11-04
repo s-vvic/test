@@ -6,7 +6,7 @@ import "./Settings.css";
 
 function GeneralSettings() {
   const [settings, setSettings] = useState({
-    autoRefresh: false,
+    autoRefresh: true,
     showOfflineBoards: true,
     defaultChannel: 6
   });

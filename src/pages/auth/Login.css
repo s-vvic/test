@@ -1,4 +1,4 @@
-/* 로그인 / 회원가입 / 아이디 찾기 / 비밀번호 찾기 공통 카드 */
+/* 로그인 / 회원가입 / 비밀번호 찾기 공통 카드 */
 
 .auth-page {
   width: 100%;
@@ -224,8 +224,7 @@
 }
 
 
-/* 입력 칸 안쪽 버튼 (중복 확인 / 비밀번호 보기) */
-.auth-field-action,
+/* 입력 칸 안쪽 버튼 (비밀번호 보기) */
 .eye-button {
   flex-shrink: 0;
 
@@ -247,14 +246,6 @@
 }
 
 
-.auth-field-action {
-  font-size: 13px;
-  font-weight: 600;
-
-  animation: auth-fade-in 0.2s ease;
-}
-
-
 .eye-button {
   width: 34px;
 
@@ -266,23 +257,11 @@
 }
 
 
-.auth-field-action:hover:not(:disabled) {
-  background-color: var(--hover);
-}
-
-
 .eye-button:hover {
   color: var(--accent);
 }
 
 
-.auth-field-action:disabled {
-  color: var(--text-muted);
-  cursor: default;
-}
-
-
-.auth-field-action:active:not(:disabled),
 .eye-button:active:not(:disabled),
 .auth-link:active:not(:disabled) {
   box-shadow: none;
@@ -301,6 +280,7 @@
   line-height: 1.5;
 
   animation: auth-fade-in 0.25s ease;
+  transform: translateY(-9px);
 }
 
 
@@ -312,11 +292,6 @@
 
   font-size: 12px;
   line-height: 1.7;
-}
-
-
-.auth-hint.is-success {
-  color: var(--success);
 }
 
 
@@ -340,7 +315,7 @@
 }
 
 
-/* 로그인 상태 유지 + 아이디 찾기 | 비밀번호 찾기 */
+/* 로그인 상태 유지 + 비밀번호 찾기 */
 .auth-options {
   display: flex;
   flex-wrap: wrap;
@@ -450,12 +425,6 @@
 
 .auth-link:hover {
   text-decoration: underline;
-}
-
-
-.auth-divider {
-  color: var(--text-muted);
-  font-size: 11px;
 }
 
 
@@ -587,7 +556,6 @@
 
   .auth-title,
   .auth-guide,
-  .auth-field-action,
   .auth-submit-label,
   .auth-switch {
     animation: none;

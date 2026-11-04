@@ -2,12 +2,14 @@ import { useState } from "react";
 import { FiX, FiCpu, FiTag, FiMapPin, FiVideo } from "react-icons/fi";
 
 import "./CameraRegisterModal.css";
+import { normalizeMac } from "../utils/mac";
 
 const CAMERA_NAME_PATTERN = /^[가-힣a-zA-Z0-9 _()-]*$/;
 
 const MAC_PATTERN = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 
-// 입력값을 AA:BB:CC:DD:EE:FF 형식으로 정리 (구분자 -, : , 공백 모두 허용)
+// 화면에서는 입력값을 AA:BB:CC:DD:EE:FF 형식으로 보여 준다 (구분자 -, : , 공백 모두 허용)
+// 서버에는 콜론 없는 12자리(AABBCCDDEEFF)로 보낸다
 function formatMacAddress(value) {
   const hex = value.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 12);
 
@@ -42,7 +44,8 @@ function CameraRegisterModal({ onClose, onRegister, registeredMacs = [] }) {
       return;
     }
 
-    if (registeredMacs.includes(macAddress)) {
+    // 등록된 MAC(서버 형식)과 비교할 때는 둘 다 콜론 없는 형식으로 맞춘다
+    if (registeredMacs.map(normalizeMac).includes(normalizeMac(macAddress))) {
       setErrorMessage("이미 등록된 MAC 주소입니다.");
       return;
     }
@@ -57,7 +60,7 @@ function CameraRegisterModal({ onClose, onRegister, registeredMacs = [] }) {
     setErrorMessage("");
 
     const newCamera = {
-      mac: macAddress,
+      mac: normalizeMac(macAddress),
       name: cameraName.trim(),
       location: location.trim() || "미설정",
     };

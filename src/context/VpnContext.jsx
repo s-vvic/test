@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { fetchClientVpnStatus } from "../api/vpnApi";
+import { VPN_UNREACHABLE_EVENT } from "../api/client";
 
 const VpnContext = createContext(null);
 
@@ -24,6 +25,19 @@ export function VpnProvider({ children }) {
 
       return false;
     }
+  }, []);
+
+  // 어떤 API 요청이든 서버에 닿지 못하면(네트워크 오류) VPN 안내 배너를 띄운다
+  useEffect(() => {
+    function handleUnreachable() {
+      setPeerVpnStatus("error");
+    }
+
+    window.addEventListener(VPN_UNREACHABLE_EVENT, handleUnreachable);
+
+    return () => {
+      window.removeEventListener(VPN_UNREACHABLE_EVENT, handleUnreachable);
+    };
   }, []);
 
   return (

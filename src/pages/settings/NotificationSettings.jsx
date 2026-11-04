@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./Settings.css";
 import Toggle from "../../components/Toggle";
 import { getNotificationSettings } from "../../api/settingsApi";
-// import { getNotificationSettings, updateNotificationSetting } from "../../api/settingsApi";  // 서버 연결 후 저장 호출 주석 해제 시
+// import { getNotificationSettings, updateNotificationSettings } from "../../api/settingsApi";  // 서버 연결 후 저장 호출 주석 해제 시
 
 function NotificationSettings() {
   const [settings, setSettings] = useState({
@@ -19,7 +19,8 @@ useEffect(() => {
   async function loadSettings() {
     try {
       const data = await getNotificationSettings();
-      setSettings(data);
+      // vpn 알림은 명세(2.7)에 없어서 화면 값을 유지한다
+      setSettings((prev) => ({ ...prev, ...data }));
     } catch (error) {
       console.error(error);
     }
@@ -45,7 +46,8 @@ async function handleToggle(key) {
   }));
 
   try {
-    await updateNotificationSetting(key, newValue);
+    // 2.7.2는 전체 설정을 한 번에 저장한다
+    await updateNotificationSettings({ ...settings, [key]: newValue });
   } catch (error) {
     console.error(error);
     setSettings((prev) => ({

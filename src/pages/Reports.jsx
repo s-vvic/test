@@ -110,7 +110,7 @@ function Reports() {
   const selectedCameraName =
     applied.cameraId === "all"
       ? "전체 카메라"
-      : cameras.find((c) => String(c.id) === String(applied.cameraId))?.name;
+      : cameras.find((c) => String(c.device_id) === String(applied.cameraId))?.name;
 
   const rangeText = `${applied.startDate} ~ ${applied.endDate} · ${selectedCameraName}`;
 
@@ -302,7 +302,7 @@ function Reports() {
         >
           <option value="all">전체 카메라</option>
           {cameras.map((camera) => (
-            <option key={camera.id} value={camera.id}>
+            <option key={camera.device_id} value={camera.device_id}>
               {camera.name}
             </option>
           ))}

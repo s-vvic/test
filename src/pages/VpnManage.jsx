@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { initialVpnDevices } from "../data/vpnDevices";
+import useVpnConnections from "../hooks/useVpnConnections";
 import Pagination from "../components/Pagination";
 import useFitPagination from "../hooks/useFitPagination";
 import Toggle from "../components/Toggle";
@@ -9,19 +9,28 @@ import VpnDeviceTable from "../components/vpn/VpnDeviceTable";
 import { useVpn } from "../context/VpnContext";
 import { VPN_STATUS_META } from "../components/charts/chartColors";
 import VpnDeviceDetailModal from "../components/vpn/VpnDeviceDetailModal";
-// import { connectClientVpn, getVpnDevices } from "../api/vpnApi";  // 서버 연결 후 주석 해제
+import { requestVpnRecovery } from "../api/vpnApi";
+// import { fetchClientVpnStatus } from "../api/vpnApi";  // 서버 연결 후 주석 해제
 import "./VpnManage.css";
+
+/* VPN 연결 상태 목록 (ICD 2.5.1 GET /vpn/connections) 서버 연동 스위치
+   - false (지금): 서버에 요청하지 않고 목업(data/vpnDevices.js) 표시, 복구 · 새로고침도 화면에서만 동작
+   - true: 화면에 있는 동안 5초마다 목록 재조회, 복구 요청은 POST /vpn/connections/{mac}/recover 후 바로 재조회 */
+const VPN_API_ENABLED = false;
 
 function VpnManage() {
   const navigate = useNavigate();
     const { peerVpnStatus, setPeerVpnStatus } = useVpn();
-    const [ devices, setDevices ] = useState(initialVpnDevices);
+    const {
+        devices,
+        setDevices,
+        fetchedAt,
+        isFetching: refreshing,
+        refresh,
+    } = useVpnConnections({ enabled: VPN_API_ENABLED });
     const [ searchKeyword, setSearchKeyword ] = useState("");
     const [ statusFilter, setStatusFilter ] = useState("all");
-    const [refreshing, setRefreshing] = useState(false);
-    const [ lastUpdated, setLastUpdated ] = useState(
-        new Date().toLocaleString()
-    );
+    const lastUpdated = fetchedAt.toLocaleString();
 
     // WEB-F-054 상세 정보 모달
     const [ selectedDevice, setSelectedDevice ] = useState(null);
@@ -82,8 +91,21 @@ function VpnManage() {
         setCurrentPage(1);
     }
 
-    /* VPN connected / disconnected */
-    function handleConnection(deviceId) {
+    /* 복구 요청 */
+    async function handleConnection(deviceId) {
+        // 서버 연동 시: 복구 요청(POST /vpn/connections/{mac}/recover) 뒤 목록을 바로 다시 받는다
+        // (서버 데이터의 deviceId는 MAC 주소)
+        if (VPN_API_ENABLED) {
+            try {
+                await requestVpnRecovery(deviceId);
+                await refresh();
+            } catch (error) {
+                console.error(error);
+            }
+            return;
+        }
+
+        // 서버 연결 전: 화면에서만 연결 / 끊김을 바꾼다
         setDevices((prev) => 
             prev.map((device) => {
                 if (device.id !== deviceId) {
@@ -101,7 +123,7 @@ function VpnManage() {
                         : "방금 연결됨",
                     vpnIp: isConnected
                         ? "-"
-                        : `10.0.0.${100 + device.id}`,
+                        : device.assignedIp ?? "-",
                     lastHandshake: isConnected
                         ? "-"
                         : new Date().toLocaleString(),
@@ -130,9 +152,10 @@ function VpnManage() {
       try {
 
         /*  실제 서버 연동 시 사용
-        const data = await connectClientVpn();
+        // 브라우저는 WireGuard를 직접 켤 수 없어서(ICD 2.8 [TBR]) OS WireGuard 앱으로 연결한 뒤 연결 여부만 다시 확인한다
+        const connected = await fetchClientVpnStatus();
 
-        if (data.connected) {
+        if (connected) {
           setPeerVpnStatus("connected");
 
           setTimeout(() => {
@@ -162,32 +185,10 @@ function VpnManage() {
     }
 
 
-/*  나중에 서버 연결 후 api 호출 */
+    /* 새로고침 버튼: 서버 연동 시 GET /vpn/connections, 서버 연결 전에는 임시 새로고침 효과 */
     function handleRefresh() {
-      setRefreshing(true);
-
-      // 서버 연결 전 임시 새로고침 효과
-      setTimeout(() => {
-        setLastUpdated(new Date().toLocaleString());
-        setRefreshing(false);
-      }, 600);
+      refresh();
     }
-
-    /* 서버 연결 후 서버 연결 중에만 아이콘 회전
-    async function handleRefresh() {
-      setRefreshing(true);
-
-      try {
-        const data = await getVpnDevices();
-
-        setDevices(data);
-        setLastUpdated(new Date().toLocaleString());
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setRefreshing(false);
-      }
-    } */
 
     return (
       <main className="vpn-page">

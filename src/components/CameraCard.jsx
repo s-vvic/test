@@ -3,7 +3,6 @@ import { useRef, useState } from "react";
 import "./CameraCard.css";
 import {
   FiMoreHorizontal,
-  FiVideo,
   FiVideoOff,
   FiMapPin,
   FiShield,
@@ -13,6 +12,9 @@ import { useFloating, offset, flip, shift, autoUpdate, useClick, useDismiss, use
 import { useNavigate } from "react-router-dom";
 import { VPN_STATUS_META } from "./charts/chartColors";
 import useWebRtcStream from "../hooks/useWebRtcStream";
+import { formatDateTime, formatLastSeen } from "../utils/formatDateTime";
+import CameraThumbnail from "./CameraThumbnail";
+import { formatMac } from "../utils/mac";
 
 const pad = (value) => String(value).padStart(2, "0");
 
@@ -73,18 +75,19 @@ function CameraCard({
   } = useInteractions([click, dismiss]);
 
   function openMonitoring() {
-    navigate(`/Monitoring/${camera.id}`);
+    navigate(`/Monitoring/${camera.device_id}`);
   }
 
+  // last_seen은 UTC → KST, null이면 "기록 없음"
+  const lastSeen = formatLastSeen(camera.last_seen);
+
   const details = [
-    ["카메라 ID", camera.id],
-    ["기기 번호", camera.hwnum],
-    ["IP", camera.ip],
-    ["모델", camera.model],
-    ["펌웨어", camera.firmwareVersion],
-    ["가동 시간", isOnline ? camera.uptime : "-"],
-    ["최근 이벤트", recentEvent ?? "-"],
-    ["마지막 연결", camera.lastConnectedAt],
+    ["보드 ID", camera.device_id],
+    ["MAC", camera.mac ? formatMac(camera.mac) : null],
+    ["VPN IP", camera.vpn_ip],
+    ["펌웨어", camera.firmware_version],
+    ["최근 이벤트", recentEvent ?? (camera.latest_event_time ? formatDateTime(camera.latest_event_time) : "-")],
+    ["마지막 수신", lastSeen],
   ].filter(([, value]) => value !== undefined && value !== null && value !== "");
 
   return (
@@ -127,17 +130,22 @@ function CameraCard({
             )}
           </>
         ) : isOnline ? (
-          <div className="cam-placeholder">
-            <FiVideo />
-          </div>
+          // 스트림이 없으면 썸네일 (thumbnail_url이 비어 있으면 기본 이미지)
+          <CameraThumbnail
+            url={camera.thumbnail_url}
+            alt={`${camera.name} 썸네일`}
+            className="cam-thumbnail"
+          />
         ) : (
-          <div className="cam-no-signal">
-            <FiVideoOff />
-            <strong>신호 없음</strong>
-            {camera.lastConnectedAt && (
-              <small>마지막 연결 {camera.lastConnectedAt}</small>
-            )}
-          </div>
+          <>
+            <CameraThumbnail url={camera.thumbnail_url} className="cam-thumbnail offline" />
+
+            <div className="cam-no-signal">
+              <FiVideoOff />
+              <strong>신호 없음</strong>
+              <small>마지막 수신 {lastSeen}</small>
+            </div>
+          </>
         )}
 
         <div className="cam-overlay-top">
@@ -179,11 +187,11 @@ function CameraCard({
         </div>
 
         <div className="cam-actions">
-          {camera.vpnStatus && (
+          {camera.vpn_status && (
             <span
-              className={`cam-vpn ${camera.vpnStatus}`}
-              title={`VPN ${vpnLabel(camera.vpnStatus)}`}
-              aria-label={`VPN ${vpnLabel(camera.vpnStatus)}`}
+              className={`cam-vpn ${camera.vpn_status}`}
+              title={`VPN ${vpnLabel(camera.vpn_status)}`}
+              aria-label={`VPN ${vpnLabel(camera.vpn_status)}`}
             >
               <FiShield />
             </span>
@@ -222,11 +230,11 @@ function CameraCard({
                 <dd>{value}</dd>
               </div>
             ))}
-            {camera.vpnStatus && (
+            {camera.vpn_status && (
               <div>
                 <dt>VPN</dt>
-                <dd className={`cam-vpn-text ${camera.vpnStatus}`}>
-                  {vpnLabel(camera.vpnStatus)}
+                <dd className={`cam-vpn-text ${camera.vpn_status}`}>
+                  {vpnLabel(camera.vpn_status)}
                 </dd>
               </div>
             )}

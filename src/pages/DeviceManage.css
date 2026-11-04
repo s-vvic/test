@@ -77,11 +77,9 @@
   color: var(--text-muted);
 }
 
-/* 카메라 이름: 상태 색 카메라 아이콘 + 이름
-   칸 가운데에 고정 폭 블록을 두고 안에서는 왼쪽 정렬 → 아이콘이 세로로 나란히 */
+/* 카메라 이름 */
 .device-name-cell {
-  width: min(100%, 220px);
-  margin: 0 auto;
+  width: 100%;
 
   display: flex;
   align-items: center;
@@ -120,8 +118,7 @@
 }
 
 .device-location {
-  width: min(100%, 220px);
-  margin: 0 auto;
+  width: 100%;
 
   display: flex;
   align-items: center;
@@ -203,7 +200,9 @@
 }
 
 .device-table-wrapper {
-  overflow: hidden;
+  /* 화면이 좁아 정보 열 폭 합보다 작아지면 표 안에서 가로 스크롤 */
+  overflow-x: auto;
+  overflow-y: hidden;
 
   border: none;
   box-shadow: var(--raised);
@@ -256,25 +255,82 @@
   background-color: var(--hover);
 }
 
-/* 카메라 이름 / MAC 주소 / 설치 위치 / 상태 / 작업 */
-.device-table th:nth-child(1) {
-  width: 22%;
+/* 정보 열은 고정 폭, 남는 폭은 양 끝 빈 열(col-edge)이 반씩 나눠 가진다
+   → 넓은 화면에서도 정보가 가운데에 모여 열 사이 간격이 벌어지지 않음 */
+.device-table .col-name {
+  width: 250px;
 }
 
-.device-table th:nth-child(2) {
-  width: 22%;
+.device-table .col-location {
+  width: 280px;
 }
 
-.device-table th:nth-child(3) {
-  width: 24%;
+.device-table .col-status {
+  width: 150px;
 }
 
-.device-table th:nth-child(4) {
-  width: 16%;
+.device-table .col-last-seen {
+  width: 250px;
 }
 
-.device-table th:nth-child(5) {
-  width: 16%;
+.device-table .col-actions {
+  width: 180px;
+}
+
+/* 양 끝 여백 열은 폭을 지정하지 않아야 남는 폭을 전부 가져간다 (table-layout: fixed)
+   표 최소 폭 = 정보 열 합(890px) + 양 끝 최소 여백 24px × 2 */
+.device-table {
+  min-width: 938px;
+}
+
+.device-table .device-edge {
+  padding: 0;
+}
+
+/* 열 이름과 데이터 정렬을 맞춘다
+   - 글자 길이가 제각각인 카메라 이름 · 설치 위치: 열 이름과 데이터 모두 왼쪽 정렬, 같은 안쪽 여백
+   - 상태 · 마지막 수신 · 작업: 열 이름과 데이터 모두 가운데 정렬 */
+.device-table th:nth-child(2),
+.device-table td:nth-child(2),
+.device-table th:nth-child(3),
+.device-table td:nth-child(3) {
+  text-align: left;
+}
+
+.device-last-seen {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.device-last-seen.empty {
+  opacity: 0.7;
+}
+
+.device-table td.device-empty {
+  color: var(--text-muted);
+}
+
+/* 새로고침 · 등록 버튼과 데이터 출처 표시 */
+.device-manage-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.register-camera-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.register-camera-button .spinning {
+  animation: device-spin 1s linear infinite;
+}
+
+@keyframes device-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .device-mac {

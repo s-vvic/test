@@ -1,68 +1,62 @@
 //로그인 화면
-//한 카드 안에서 로그인 / 회원가입 / 아이디 찾기 / 비밀번호 찾기를 전환한다
+//한 카드 안에서 로그인 / 회원가입 / 비밀번호 찾기를 전환한다
+//이메일로 가입하고 로그인한다
 
 import "./Login.css";
 import { useState, useEffect, useRef } from "react";
 import {
   FaEye,
   FaEyeSlash,
-  FaUser,
   FaLock,
   FaEnvelope,
+  FaUser,
   FaCheck
 } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
-import { signup, checkUserId } from "../../api/authApi";
+import { login, signup } from "../../api/authApi";
+import { ApiError } from "../../api/client";
 import {
   saveSession,
   clearSession,
   hasSavedSession,
   isRememberMe,
-  getRememberedUserId
+  getRememberedEmail,
+  takeLoginNotice
 } from "../../storage/authStorage";
 
 // 모드마다 주소를 따로 둬서 브라우저 뒤로가기로 로그인 카드에 돌아올 수 있게 한다
 const MODE_PATHS = {
   login: "/login",
   signup: "/signup",
-  findId: "/find-id",
   findPw: "/find-pw"
 };
 
 const TITLES = {
   login: "로그인",
   signup: "회원가입",
-  findId: "아이디 찾기",
   findPw: "비밀번호 찾기"
 };
 
 const SUBMIT_LABELS = {
   login: "LOGIN",
   signup: "SIGN UP",
-  findId: "FIND ID",
   findPw: "FIND PASSWORD"
 };
 
-const FIND_GUIDES = {
-  findId: "가입할 때 사용한 이메일을 입력해 주세요.",
-  findPw: "가입한 아이디와 이메일을 입력해 주세요."
-};
+const FIND_PW_GUIDE = "가입한 이메일을 입력해 주세요.";
 
-const ID_MIN_LENGTH = 4;
-const ID_MAX_LENGTH = 20;
+// 이메일 주소 최대 길이 (RFC 5321)
+const EMAIL_MAX_LENGTH = 254;
+
+const NAME_MAX_LENGTH = 50;
 
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 64;
-
-//아이디 영문 대소문자 + 숫자만 허용
-const ID_PATTERN = /^[A-Za-z0-9]*$/;
 
 //비밀번호 영문 대소문자 + 숫자 + 특수문자
 const PASSWORD_PATTERN = /^[A-Za-z0-9!@#$%^&*]*$/;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const ID_CHECK_IDLE = { status: "idle", message: "" };
 
 function modeOf(pathname) {
   const path = pathname.toLowerCase().replace(/\/+$/, "");
@@ -82,12 +76,12 @@ function Login() {
   const mode = modeOf(location.pathname);
 
   const isSignup = mode === "signup";
-  const isFind = mode === "findId" || mode === "findPw";
+  const isFind = mode === "findPw";
 
-  const [userId, setUserId] = useState(getRememberedUserId);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState(getRememberedEmail);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [email, setEmail] = useState("");
 
   // 로그인 상태 유지 (remember me)
   const [rememberMe, setRememberMe] = useState(isRememberMe);
@@ -95,16 +89,13 @@ function Login() {
   // 안내 / 오류 메시지. 띄운 모드에서만 보이고 다른 모드로 넘어가면 사라진다
   const [feedback, setFeedback] = useState(null);
 
-  // 아이디 중복 확인 (idle / checking / available / taken / error)
-  const [idCheck, setIdCheck] = useState(ID_CHECK_IDLE);
-
   const [isBusy, setIsBusy] = useState(false);
 
   const inputRefs = {
-    userId: useRef(null),
+    name: useRef(null),
+    email: useRef(null),
     password: useRef(null),
-    passwordConfirm: useRef(null),
-    email: useRef(null)
+    passwordConfirm: useRef(null)
   };
 
   const shownFeedback = feedback?.mode === mode ? feedback : null;
@@ -116,12 +107,6 @@ function Login() {
   }
   const messageToRender = shownFeedback ?? lastFeedbackRef.current;
 
-  // 찾기 카드가 접히는 동안에도 안내 문구가 바뀌지 않도록 마지막 찾기 모드를 기억해 둔다
-  const lastFindModeRef = useRef("findId");
-  if (isFind) {
-    lastFindModeRef.current = mode;
-  }
-
   // 로그인 상태 유지 중이면 바로 들어가고, 아니면 남은 토큰을 정리한다
   useEffect(() => {
     if (hasSavedSession()) {
@@ -130,12 +115,17 @@ function Login() {
     }
 
     clearSession();
+
+    // 401로 쫓겨 온 경우 서버가 보낸 사유를 보여 준다
+    const notice = takeLoginNotice();
+    if (notice) {
+      setFeedback({ mode: "login", text: notice, isError: true });
+    }
   }, [navigate]);
 
-  // 회원가입 카드를 벗어나면 중복 확인 / 비밀번호 확인을 초기화한다
+  // 회원가입 카드를 벗어나면 비밀번호 확인을 초기화한다
   useEffect(() => {
     if (mode !== "signup") {
-      setIdCheck(ID_CHECK_IDLE);
       setPasswordConfirm("");
     }
   }, [mode]);
@@ -160,20 +150,26 @@ function Login() {
 
   /* 입력 */
 
-  function handleUserIdChange(event) {
+  function handleNameChange(event) {
     const value = event.target.value;
 
-    // 회원가입에서는 허용하지 않는 문자는 아예 입력되지 않게 막는다
-    if (isSignup) {
-      if (value.length > ID_MAX_LENGTH || !ID_PATTERN.test(value)) {
-        return;
-      }
-
-      // 아이디가 바뀌면 중복 확인 다시 필요
-      setIdCheck(ID_CHECK_IDLE);
+    if (value.length > NAME_MAX_LENGTH) {
+      return;
     }
 
-    setUserId(value);
+    setName(value);
+    setFeedback(null);
+  }
+
+  function handleEmailChange(event) {
+    const value = event.target.value;
+
+    // 회원가입에서는 최대 길이를 넘는 입력은 아예 받지 않는다
+    if (isSignup && value.length > EMAIL_MAX_LENGTH) {
+      return;
+    }
+
+    setEmail(value);
     setFeedback(null);
   }
 
@@ -205,19 +201,27 @@ function Login() {
     setFeedback(null);
   }
 
-  function handleEmailChange(event) {
-    setEmail(event.target.value);
-    setFeedback(null);
+  // 이메일 미입력 / 형식 검사 (모든 모드 공통)
+  function validateEmail() {
+    if (!email.trim()) {
+      showError("이메일을 입력해 주세요.", "email");
+      return false;
+    }
+
+    if (!EMAIL_PATTERN.test(email.trim())) {
+      showError("올바른 이메일 형식을 입력해 주세요.", "email");
+      return false;
+    }
+
+    return true;
   }
 
 
   /* 로그인 */
 
-  function handleLogin() {
+  async function handleLogin() {
 
-    //아이디 미입력
-    if (!userId.trim()) {
-      showError("아이디를 입력해 주세요.", "userId");
+    if (!validateEmail()) {
       return;
     }
 
@@ -228,116 +232,61 @@ function Login() {
     }
 
     /*
-    나중에는 여기서 백엔드 로그인 API를 호출한다. (authApi의 login import)
+    서버 없이 화면을 확인할 때만 임시 토큰으로 로그인을 우회한다. (지금은 비활성화)
+    setFeedback(null);
+    saveSession(email.trim(), "temporary-token", rememberMe);
+    navigate("/vpn-check", { replace: true });
+    return;
+    */
+
     try {
       setIsBusy(true);
+      setFeedback(null);
 
-      const data = await login(userId.trim(), password);
+      const data = await login(email.trim(), password, rememberMe);
 
-      saveSession(userId.trim(), data.accessToken, rememberMe);
+      // 응답에 토큰이 없으면 로그인 실패로 본다
+      if (!data?.access_token) {
+        throw new Error("MISSING_ACCESS_TOKEN");
+      }
+
+      saveSession(email.trim(), data.access_token, rememberMe);
 
       navigate("/vpn-check", { replace: true });
     } catch (error) {
 
-      if (error.code === "INVALID_CREDENTIALS") {
-        showError(
-          "아이디 또는 비밀번호가 올바르지 않습니다. 입력한 정보를 다시 확인해 주세요.",
-          "password"
-        );
+      // 400 INVALID_CREDENTIALS: 서버 message를 비밀번호 칸 아래에 보여 준다
+      if (error instanceof ApiError && error.status === 400) {
+        showError(error.message, "password");
         return;
       }
 
-      // 서버 오류 / 네트워크 오류 등
-      setFeedback({ mode, text: "로그인 처리 중 문제가 발생했습니다.", isError: true });
+      // 서버 오류는 서버 message를, 네트워크 오류 등은 기본 문구를 보여 준다
+      console.error(error);
+      setFeedback({
+        mode,
+        text: error instanceof ApiError
+          ? error.message
+          : "로그인 처리 중 문제가 발생했습니다.",
+        isError: true
+      });
     } finally {
       setIsBusy(false);
     }
-    */
-
-    // 현재는 로그인 성공을 임시로 저장
-    setFeedback(null);
-    saveSession(userId.trim(), "temporary-token", rememberMe);
-
-    navigate("/vpn-check", { replace: true });
   }
 
 
   /* 회원가입 */
 
-  async function handleCheckUserId() {
-    const trimmedId = userId.trim();
-
-    if (!trimmedId) {
-      showError("아이디를 입력해 주세요.", "userId");
-      return;
-    }
-
-    if (
-      trimmedId.length < ID_MIN_LENGTH ||
-      trimmedId.length > ID_MAX_LENGTH
-    ) {
-      showError(
-        `아이디는 ${ID_MIN_LENGTH}~${ID_MAX_LENGTH}자로 입력해 주세요.`,
-        "userId"
-      );
-      return;
-    }
-
-    try {
-      setFeedback(null);
-      setIdCheck({ status: "checking", message: "" });
-
-      const data = await checkUserId(trimmedId);
-
-      setIdCheck(
-        data.available
-          ? { status: "available", message: "사용 가능한 아이디입니다." }
-          : { status: "taken", message: "이미 사용 중인 아이디입니다." }
-      );
-    } catch (error) {
-      console.error(error);
-
-      setIdCheck({
-        status: "error",
-        message: "아이디 중복 확인에 실패했습니다."
-      });
-    }
-  }
-
   async function handleSignup() {
 
-    //아이디 입력 여부
-    if (!userId.trim()) {
-      showError("아이디를 입력해 주세요.", "userId");
+    //이름
+    if (!name.trim()) {
+      showError("이름을 입력해 주세요.", "name");
       return;
     }
 
-    //아이디 길이
-    if (
-      userId.length < ID_MIN_LENGTH ||
-      userId.length > ID_MAX_LENGTH
-    ) {
-      showError(
-        `아이디는 ${ID_MIN_LENGTH}~${ID_MAX_LENGTH}자로 입력해 주세요.`,
-        "userId"
-      );
-      return;
-    }
-
-    //아이디 문자 검사
-    if (!ID_PATTERN.test(userId)) {
-      showError("아이디는 영문과 숫자만 사용할 수 있습니다.", "userId");
-      return;
-    }
-
-    //중복 확인 여부
-    if (idCheck.status !== "available") {
-      showError(
-        idCheck.status === "taken"
-          ? "사용할 수 없는 아이디입니다."
-          : "아이디 중복 확인을 해주세요.",
-        "userId"
-      );
+    if (!validateEmail()) {
       return;
     }
 
@@ -380,46 +329,34 @@ function Login() {
       return;
     }
 
-    //이메일
-    if (!email.trim()) {
-      showError("이메일을 입력해 주세요.", "email");
-      return;
-    }
-
-    //이메일 형식
-    if (!EMAIL_PATTERN.test(email.trim())) {
-      showError("올바른 이메일 형식을 입력해 주세요.", "email");
-      return;
-    }
-
     try {
       setIsBusy(true);
       setFeedback(null);
 
-      await signup(userId.trim(), email.trim(), password);
+      await signup(email.trim(), password, name.trim());
 
-      // 회원가입이 끝나면 카드를 로그인으로 접고 아이디는 남겨 둔다
+      // 회원가입이 끝나면 카드를 로그인으로 접고 이메일은 남겨 둔다
+      setName("");
       setPassword("");
       setPasswordConfirm("");
-      setEmail("");
 
       showNotice("회원가입이 완료되었습니다. 로그인해 주세요.", "login");
       navigate(MODE_PATHS.login, { replace: true });
 
     } catch (error) {
 
-      // 중복확인 이후 다른 사람이 같은 ID를
-      // 먼저 가입한 경우까지 대비
-      if (error.code === "DUPLICATE_USER") {
-        setIdCheck(ID_CHECK_IDLE);
-        showError("이미 사용 중인 아이디입니다.", "userId");
+      // 409: 이미 같은 이메일로 가입된 계정이 있는 경우
+      if (error instanceof ApiError && error.status === 409) {
+        showError(error.message, "email");
         return;
       }
 
       console.error(error);
       setFeedback({
         mode,
-        text: "회원가입 처리 중 문제가 발생했습니다.",
+        text: error instanceof ApiError
+          ? error.message
+          : "회원가입 처리 중 문제가 발생했습니다.",
         isError: true
       });
     } finally {
@@ -428,38 +365,10 @@ function Login() {
   }
 
 
-  /* 아이디 / 비밀번호 찾기 */
-
-  function validateFindEmail() {
-    if (!email.trim()) {
-      showError("이메일을 입력해 주세요.", "email");
-      return false;
-    }
-
-    if (!EMAIL_PATTERN.test(email.trim())) {
-      showError("올바른 이메일 형식을 입력해 주세요.", "email");
-      return false;
-    }
-
-    return true;
-  }
-
-  function handleFindId() {
-    if (!validateFindEmail()) {
-      return;
-    }
-
-    // TODO: 아이디 찾기 API 연동 (백엔드 명세 확정 후)
-    showNotice("아이디 찾기는 서버 연동 후 사용할 수 있습니다.");
-  }
+  /* 비밀번호 찾기 */
 
   function handleFindPassword() {
-    if (!userId.trim()) {
-      showError("아이디를 입력해 주세요.", "userId");
-      return;
-    }
-
-    if (!validateFindEmail()) {
+    if (!validateEmail()) {
       return;
     }
 
@@ -477,7 +386,6 @@ function Login() {
 
     if (mode === "login") handleLogin();
     else if (mode === "signup") handleSignup();
-    else if (mode === "findId") handleFindId();
     else handleFindPassword();
   }
 
@@ -502,58 +410,39 @@ function Login() {
 
           {/* 찾기 안내 */}
           <Collapse open={isFind} tight>
-            <p key={`guide-${lastFindModeRef.current}`} className="auth-guide">
-              {FIND_GUIDES[lastFindModeRef.current]}
-            </p>
+            <p className="auth-guide">{FIND_PW_GUIDE}</p>
           </Collapse>
 
-          {/* 아이디 */}
-          <Collapse open={mode !== "findId"}>
+          {/* 이름 (회원가입일 때만) */}
+          <Collapse open={isSignup}>
             <AuthField
               icon={<FaUser />}
-              inputRef={inputRefs.userId}
-              invalid={isInvalid("userId")}
+              inputRef={inputRefs.name}
+              invalid={isInvalid("name")}
               type="text"
-              placeholder="아이디"
-              aria-label="아이디"
-              value={userId}
-              onChange={handleUserIdChange}
-              autoComplete="username"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
-              trailing={
-                isSignup && (
-                  <button
-                    type="button"
-                    className="auth-field-action"
-                    onClick={handleCheckUserId}
-                    disabled={
-                      idCheck.status === "checking" || !userId.trim()
-                    }
-                  >
-                    {idCheck.status === "checking"
-                      ? <span className="auth-spinner" />
-                      : "중복 확인"}
-                  </button>
-                )
-              }
+              placeholder="이름"
+              aria-label="이름"
+              value={name}
+              onChange={handleNameChange}
+              autoComplete="name"
             />
-
-            <Collapse open={isSignup} hint>
-              <p className="auth-hint">영문, 숫자 4~20자</p>
-
-              {idCheck.message && (
-                <p
-                  className={`auth-hint ${
-                    idCheck.status === "available" ? "is-success" : "is-error"
-                  }`}
-                >
-                  {idCheck.message}
-                </p>
-              )}
-            </Collapse>
           </Collapse>
+
+          {/* 이메일 (모든 모드 공통) */}
+          <AuthField
+            icon={<FaEnvelope />}
+            inputRef={inputRefs.email}
+            invalid={isInvalid("email")}
+            type="email"
+            placeholder="이메일"
+            aria-label="이메일"
+            value={email}
+            onChange={handleEmailChange}
+            autoComplete={isSignup ? "email" : "username"}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+          />
 
           {/* 비밀번호 */}
           <Collapse open={!isFind}>
@@ -591,23 +480,6 @@ function Login() {
             </Collapse>
           </Collapse>
 
-          {/* 이메일 */}
-          <Collapse open={isSignup || isFind}>
-            <AuthField
-              icon={<FaEnvelope />}
-              inputRef={inputRefs.email}
-              invalid={isInvalid("email")}
-              type="email"
-              placeholder="이메일"
-              aria-label="이메일"
-              value={email}
-              onChange={handleEmailChange}
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck="false"
-            />
-          </Collapse>
-
           {/* 경고 / 안내 메시지 */}
           <Collapse open={!!shownFeedback} message>
             <p
@@ -620,7 +492,7 @@ function Login() {
             </p>
           </Collapse>
 
-          {/* 로그인 상태 유지 + 아이디 찾기 | 비밀번호 찾기 */}
+          {/* 로그인 상태 유지 + 비밀번호 찾기 */}
           <Collapse open={mode === "login"} options>
             <div className="auth-options">
               <label className="remember-me">
@@ -636,16 +508,6 @@ function Login() {
               </label>
 
               <div className="auth-find-links">
-                <button
-                  type="button"
-                  className="auth-link"
-                  onClick={() => switchMode("findId")}
-                >
-                  아이디 찾기
-                </button>
-
-                <span className="auth-divider">|</span>
-
                 <button
                   type="button"
                   className="auth-link"

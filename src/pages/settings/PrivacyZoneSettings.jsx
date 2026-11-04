@@ -12,16 +12,16 @@ import "../../components/settings/SettingsExtra.css";
 function PrivacyZoneSettings() {
   const navigate = useNavigate();
 
-  const [cameraId, setCameraId] = useState(cameras[0]?.id);
-  const [zones, setZones] = useState(() => getZones(cameras[0]?.id));
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(getZones(cameras[0]?.id)));
+  const [cameraId, setCameraId] = useState(cameras[0]?.device_id);
+  const [zones, setZones] = useState(() => getZones(cameras[0]?.device_id));
+  const [savedJson, setSavedJson] = useState(() => JSON.stringify(getZones(cameras[0]?.device_id)));
   const [keyword, setKeyword] = useState("");
   const [saveState, setSaveState] = useState("idle"); // idle | saving | done | failed
   const [, forceRender] = useState(0);
 
   const isDirty = JSON.stringify(zones) !== savedJson;
 
-  const camera = cameras.find((c) => c.id === cameraId);
+  const camera = cameras.find((c) => c.device_id === cameraId);
 
   const filteredCameras = cameras.filter((c) =>
     c.name.toLowerCase().includes(keyword.toLowerCase())
@@ -92,15 +92,15 @@ function PrivacyZoneSettings() {
 
           <ul>
             {filteredCameras.map((c) => (
-              <li key={c.id}>
+              <li key={c.device_id}>
                 <button
                   type="button"
-                  className={c.id === cameraId ? "active" : ""}
-                  onClick={() => handleSelectCamera(c.id)}
+                  className={c.device_id === cameraId ? "active" : ""}
+                  onClick={() => handleSelectCamera(c.device_id)}
                 >
                   <span className={`pz-camera-dot ${c.status}`} />
                   <span className="pz-camera-name">{c.name}</span>
-                  {countZones(c.id) > 0 && <span className="pz-camera-count">{countZones(c.id)}</span>}
+                  {countZones(c.device_id) > 0 && <span className="pz-camera-count">{countZones(c.device_id)}</span>}
                 </button>
               </li>
             ))}
@@ -121,14 +121,14 @@ function PrivacyZoneSettings() {
                 <button
                   type="button"
                   className="btn small"
-                  onClick={() => navigate(`/Monitoring/${camera.id}`)}
+                  onClick={() => navigate(`/Monitoring/${camera.device_id}`)}
                 >
                   실시간 화면 보기
                 </button>
               </div>
 
               <PrivacyZoneEditor
-                key={camera.id}
+                key={camera.device_id}
                 zones={zones}
                 onChange={(next) => {
                   setZones(next);

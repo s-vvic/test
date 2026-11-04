@@ -7,13 +7,13 @@ import { getZones, saveZones } from "../../data/privacyZoneStore";
 
 // 실시간 모니터링 화면의 프라이버시 존 설정 (WEB-F-024)
 function PrivacyZoneModal({ camera, onClose, onSaved }) {
-  const [zones, setZones] = useState(() => getZones(camera.id));
+  const [zones, setZones] = useState(() => getZones(camera.device_id));
   const [saveState, setSaveState] = useState("idle"); // idle | saving | done
 
   /* 서버 연결 후
   useEffect(() => {
-    getPrivacyZones(camera.id).then(setZones).catch(console.error);
-  }, [camera.id]);
+    getPrivacyZones(camera.mac).then(setZones).catch(console.error);
+  }, [camera.device_id, camera.mac]);
   */
 
   function handleSave() {
@@ -21,7 +21,7 @@ function PrivacyZoneModal({ camera, onClose, onSaved }) {
 
     // 시연용: 서버 → 보드 적용 대기 흉내
     setTimeout(() => {
-      const saved = saveZones(camera.id, zones);
+      const saved = saveZones(camera.device_id, zones);
 
       setSaveState("done");
       onSaved?.(saved);
@@ -31,7 +31,7 @@ function PrivacyZoneModal({ camera, onClose, onSaved }) {
 
     /* 서버 연결 후
     try {
-      const result = await savePrivacyZones(camera.id, zones);
+      const result = await savePrivacyZones(camera.mac, zones);
       if (!result.applied) throw new Error("보드 적용 실패");
       onSaved?.(result.zones);
       onClose();

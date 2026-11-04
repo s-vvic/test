@@ -15,11 +15,12 @@ import {
 } from "react-icons/fi";
 
 import CameraCard from "../components/CameraCard";
+import CameraSourceBadge from "../components/CameraSourceBadge";
 import { EVENT_TYPE_META } from "../components/charts/chartColors";
-import { cameras as initialCameras } from "../data/cameras";
 import { eventLogs } from "../data/eventLogs";
 import { getDeviceVpnList } from "../data/statisticsMock";
-// import { getCameras } from "../api/cameraApi";  // 서버 연결 후 주석 해제
+import useCameraList from "../hooks/useCameraList";
+import { formatMac, normalizeMac } from "../utils/mac";
 
 // 채널 수별 한 페이지 배치 (가로 x 세로)
 const CHANNEL_LAYOUTS = {
@@ -34,7 +35,8 @@ const STATUS_FILTERS = [
   { key: "offline", label: "오프라인" },
 ];
 
-/* 대시보드와 같은 목업 소스 사용 (서버 연결 후 API 응답으로 교체) */
+/* 대시보드와 같은 목업 소스 사용 — 보드 목록이 목업일 때만 덮어쓴다
+   (서버 데이터일 때는 서버가 준 vpn_status / latest_event_time을 그대로 쓴다) */
 
 // Device VPN 상태 (대시보드 WEB-F-003 과 동일)
 const VPN_STATUS_BY_ID = new Map(
@@ -64,7 +66,9 @@ function formatRecentEvent(event) {
 
 function Multiview() {
 
-  const [cameras, setCameras] = useState(initialCameras);
+  // 보드 목록 — 5초마다 자동 재조회 (status / last_seen 갱신)
+  const { cameras, source, fetchedAt } = useCameraList();
+  const isMockList = source === "loading" || source === "mock";
   const [channelCount, setChannelCount] = useState(6);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -80,14 +84,15 @@ function Multiview() {
   const camerasPerPage = cols * rows;
 
   // 채널 번호는 필터와 상관없이 전체 목록 순서로 고정
-  const channelNo = new Map(cameras.map((camera, i) => [camera.id, i + 1]));
+  const channelNo = new Map(cameras.map((camera, i) => [camera.device_id, i + 1]));
 
   const filteredCameras = cameras.filter((camera) => {
     const keyword = searchKeyword.trim().toLowerCase();
 
     const matchesSearch =
       camera.name.toLowerCase().includes(keyword) ||
-      camera.hwnum.toLowerCase().includes(keyword) ||
+      // MAC은 콜론 유무와 상관없이 검색 (예: "1C:00" / "1C00")
+      (normalizeMac(keyword) !== "" && normalizeMac(camera.mac).includes(normalizeMac(keyword))) ||
       (camera.location ?? "").toLowerCase().includes(keyword);
 
     const matchesStatus =
@@ -180,7 +185,7 @@ function Multiview() {
 
   // 목록에서 카메라를 누르면 그 카메라가 있는 페이지로 이동
   function handleSelectCamera(cameraId) {
-    const index = filteredCameras.findIndex((camera) => camera.id === cameraId);
+    const index = filteredCameras.findIndex((camera) => camera.device_id === cameraId);
 
     if (index === -1) {
       return;
@@ -197,18 +202,6 @@ function Multiview() {
       gridRef.current?.requestFullscreen?.();
     }
   }
-
-  // const [cameras, setCameras] = useState([]);
-
-  // useEffect(() => {
-  //   async function getCameras() {
-  //     const data = await getCameras();
-
-  //     setCameras(data);
-  //   }
-
-  //   getCameras();
-  // }, []);
 
   return (
     <div className="multiview">
@@ -297,15 +290,17 @@ function Multiview() {
         >
           {currentCameras.map((camera) => (
             <CameraCard
-              key={camera.id}
+              key={camera.device_id}
               camera={{
                 ...camera,
-                vpnStatus: VPN_STATUS_BY_ID.get(camera.id) ?? camera.vpnStatus,
+                vpn_status: isMockList
+                  ? VPN_STATUS_BY_ID.get(camera.device_id) ?? camera.vpn_status
+                  : camera.vpn_status,
               }}
-              recentEvent={formatRecentEvent(LATEST_EVENT_BY_ID.get(camera.id))}
-              channel={channelNo.get(camera.id)}
+              recentEvent={isMockList ? formatRecentEvent(LATEST_EVENT_BY_ID.get(camera.device_id)) : null}
+              channel={channelNo.get(camera.device_id)}
               now={now}
-              highlighted={highlightId === camera.id}
+              highlighted={highlightId === camera.device_id}
               // 서버 연결 후 getLowResStreams(현재 페이지 카메라 ID) 응답의 streamUrl 로 교체
               streamUrl={camera.lowResStreamUrl ?? null}
             />
@@ -333,6 +328,8 @@ function Multiview() {
             {filteredCameras.length} / {totalBoards}
           </span>
         </div>
+
+        <CameraSourceBadge source={source} fetchedAt={fetchedAt} className="mv-source" />
 
         <div className="mv-search">
           <FiSearch />
@@ -376,24 +373,24 @@ function Multiview() {
             const onScreen = index >= startIndex && index < endIndex;
 
             return (
-              <li key={camera.id}>
+              <li key={camera.device_id}>
                 <button
                   type="button"
                   className={onScreen ? "on-screen" : ""}
-                  onClick={() => handleSelectCamera(camera.id)}
+                  onClick={() => handleSelectCamera(camera.device_id)}
                 >
                   <span className={`mv-channel-dot ${camera.status}`} />
 
                   <span className="mv-channel-main">
                     <strong>{camera.name}</strong>
                     <small>
-                      {camera.hwnum}
+                      {formatMac(camera.mac)}
                       {camera.location ? ` · ${camera.location}` : ""}
                     </small>
                   </span>
 
                   <span className="mv-channel-no">
-                    CH {String(channelNo.get(camera.id)).padStart(2, "0")}
+                    CH {String(channelNo.get(camera.device_id)).padStart(2, "0")}
                   </span>
                 </button>
               </li>

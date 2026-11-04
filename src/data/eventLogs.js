@@ -20,7 +20,7 @@ export const eventLogs = [
   {
     id: 1,
     occurredAt: ago({ minutes: 12, seconds: 15 }),
-    cameraId: 1,
+    cameraId: "CAM-0001",
     cameraName: "CAM-01",
     location: "출입구",
     type: "sound",
@@ -33,7 +33,7 @@ export const eventLogs = [
   {
     id: 2,
     occurredAt: ago({ minutes: 24, seconds: 8 }),
-    cameraId: 3,
+    cameraId: "CAM-0003",
     cameraName: "CAM-03",
     location: "창고",
     type: "vpn_disconnect",
@@ -46,7 +46,7 @@ export const eventLogs = [
   {
     id: 3,
     occurredAt: ago({ minutes: 52, seconds: 41 }),
-    cameraId: 5,
+    cameraId: "CAM-0005",
     cameraName: "CAM-05",
     location: "주차장",
     type: "motion",
@@ -59,7 +59,7 @@ export const eventLogs = [
   {
     id: 4,
     occurredAt: ago({ hours: 1, minutes: 5, seconds: 12 }),
-    cameraId: 2,
+    cameraId: "CAM-0002",
     cameraName: "CAM-02",
     location: "복도",
     type: "camera_connect",
@@ -72,7 +72,7 @@ export const eventLogs = [
   {
     id: 5,
     occurredAt: ago({ days: 1, hours: 2, minutes: 15 }),
-    cameraId: 4,
+    cameraId: "CAM-0004",
     cameraName: "CAM-04",
     location: "사무실",
     type: "motion",
@@ -85,7 +85,7 @@ export const eventLogs = [
   {
     id: 6,
     occurredAt: ago({ days: 2, hours: 3, minutes: 40 }),
-    cameraId: 1,
+    cameraId: "CAM-0001",
     cameraName: "CAM-01",
     location: "출입구",
     type: "sound",
@@ -98,7 +98,7 @@ export const eventLogs = [
   {
     id: 7,
     occurredAt: ago({ days: 5, hours: 1, minutes: 20 }),
-    cameraId: 6,
+    cameraId: "CAM-0006",
     cameraName: "CAM-06",
     location: "후문",
     type: "vpn_connect",
@@ -111,7 +111,7 @@ export const eventLogs = [
   {
     id: 8,
     occurredAt: ago({ days: 12, hours: 4, minutes: 10 }),
-    cameraId: 3,
+    cameraId: "CAM-0003",
     cameraName: "CAM-03",
     location: "창고",
     type: "sound",
@@ -124,7 +124,7 @@ export const eventLogs = [
   {
     id: 9,
     occurredAt: ago({ days: 25, hours: 2, minutes: 30 }),
-    cameraId: 7,
+    cameraId: "CAM-0007",
     cameraName: "CAM-07",
     location: "외부",
     type: "motion",
@@ -137,7 +137,7 @@ export const eventLogs = [
   {
     id: 10,
     occurredAt: ago({ days: 45, hours: 5, minutes: 5 }),
-    cameraId: 2,
+    cameraId: "CAM-0002",
     cameraName: "CAM-02",
     location: "복도",
     type: "camera_disconnect",

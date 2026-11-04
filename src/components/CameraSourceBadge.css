@@ -1,0 +1,31 @@
+.camera-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.camera-source-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
+.camera-source.server {
+  color: var(--accent);
+}
+
+.camera-source.server .camera-source-dot {
+  background-color: var(--accent);
+}
+
+.camera-source.stale .camera-source-dot,
+.camera-source.mock .camera-source-dot {
+  background-color: var(--danger);
+}

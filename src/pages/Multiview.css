@@ -575,3 +575,17 @@
     gap: 12px;
   }
 }
+
+/* 보드 목록 출처 (서버 / 목업) — 좁은 패널이라 줄바꿈 허용 */
+.mv-source {
+  margin: -4px 0 12px;
+
+  align-items: flex-start;
+  white-space: normal;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.mv-source .camera-source-dot {
+  margin-top: 4px;
+}
